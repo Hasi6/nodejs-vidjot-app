@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const { ensureAuthenticated } = require("../helpers/auth");
 
 
 //Load Idea Models
@@ -9,8 +10,8 @@ const Idea = mongoose.model('Idea');
 
 
 //idea index page
-router.get("/", (req, res) => {
-    Idea.find({})
+router.get("/", ensureAuthenticated, (req, res) => {
+    Idea.find({ user: req.user.id })
         .sort({ date: 'desc' })
         .then(ideas => {
             res.render('ideas/index', {
@@ -20,25 +21,30 @@ router.get("/", (req, res) => {
 });
 
 // add ideas form
-router.get("/add", (req, res) => {
+router.get("/add", ensureAuthenticated, (req, res) => {
     res.render("ideas/ideasAdd");
 });
 
 // Edit idea form
-router.get("/edit/:id", (req, res) => {
+router.get("/edit/:id", ensureAuthenticated, (req, res) => {
     Idea.findOne({
-            _id: req.params.id
-        })
-        .then(idea => {
+        _id: req.params.id
+    })
+
+    .then(idea => {
+        if (idea.user != req.user.id) {
+            req.flash("error_msg", "Not authorized");
+            res.redirect("/ideas");
+        } else {
             res.render("ideas/edit", {
                 idea: idea
             });
-        });
-
+        }
+    });
 });
 
 // process Form
-router.post("/", (req, res) => {
+router.post("/", ensureAuthenticated, (req, res) => {
     let errors = [];
     if (!req.body.title) {
         errors.push({ text: "plese add a title" });
@@ -55,7 +61,8 @@ router.post("/", (req, res) => {
     } else {
         const newIdea = {
             title: req.body.title,
-            details: req.body.details
+            details: req.body.details,
+            user: req.user.id
         }
         new Idea(newIdea)
             .save()
@@ -67,25 +74,31 @@ router.post("/", (req, res) => {
 });
 
 // Edit form process
-router.put("/:id", (req, res) => {
+router.put("/:id", ensureAuthenticated, (req, res) => {
     Idea.findOne({
             _id: req.params.id
         })
         .then(idea => {
-            //new values
-            idea.title = req.body.title;
-            idea.details = req.body.details;
+            if (idea.user != req.user.id) {
+                req.flash("error_msg", "Not authorized");
+                res.redirect("/ideas");
+            } else {
+                //new values
+                idea.title = req.body.title;
+                idea.details = req.body.details;
 
-            idea.save()
-                .then(idea => {
-                    req.flash('success_msg', 'Video idea Edited');
-                    res.redirect("/ideas");
-                });
+                idea.save()
+                    .then(idea => {
+                        req.flash('success_msg', 'Video idea Edited');
+                        res.redirect("/ideas");
+                    });
+            }
+
         });
 });
 
 // Delete form process
-router.delete("/delete/:id", (req, res) => {
+router.delete("/delete/:id", ensureAuthenticated, (req, res) => {
     Idea.remove({
         _id: req.params.id
     }).then(() => {
