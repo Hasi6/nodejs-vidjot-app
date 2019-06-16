@@ -8,6 +8,9 @@ const bodyParser = require("body-parser");
 const passport = require("passport");
 const mongoose = require("mongoose");
 
+// database config
+const db = require("./config/database");
+
 
 const app = express();
 
@@ -19,7 +22,7 @@ const users = require("./routes/user");
 mongoose.Promise = global.Promise;
 
 //connect to mongoose
-mongoose.connect("mongodb://localhost/project-ideas", { useNewUrlParser: true })
+mongoose.connect(db.mongoURI, { useNewUrlParser: true })
     .then(() => { //promises is connected show this
         console.log("Mongodb Connected");
     })
@@ -96,7 +99,7 @@ app.use("/ideas", ideas);
 // passport config
 require("./config/passport")(passport);
 
-const port = 5500;
+const port = process.env.PORT || 5500;
 
 app.listen(port, () => {
     console.log(`Server started on port ${port}`);
